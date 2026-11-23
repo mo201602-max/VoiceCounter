@@ -47,10 +47,10 @@ import org.json.JSONException;
 
 public final class MainActivity extends Activity {
     private static final int LIME = 0xffd0f9a9;
-    private static final int LILAC = 0xffd2a9f9;
-    private static final int PLUM = 0xff492476;
-    private static final int INK = 0xff26143d;
-    private static final int PANEL = 0xffeefcdb;
+    private static final int LEAF = 0xffb2df8b;
+    private static final int FOREST = 0xff24543a;
+    private static final int INK = 0xff142e20;
+    private static final int PANEL = 0xfff2fbe9;
     private static final int MICROPHONE = 10;
     private static final String READY = "ボタンを押して、ワードを1つ話す";
     private final LinkedHashMap<String, Long> counts = new LinkedHashMap<>();
@@ -97,7 +97,7 @@ public final class MainActivity extends Activity {
         title.setTextColor(LIME);
         title.setPadding(dp(16), dp(14), dp(16), dp(14));
         GradientDrawable banner = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{INK, PLUM, 0xff7137a2});
+                new int[]{INK, FOREST, 0xff37774e});
         banner.setCornerRadius(dp(26));
         title.setBackground(banner);
         title.setText("ヴォイスカウンター");
@@ -121,9 +121,9 @@ public final class MainActivity extends Activity {
         share = button(root, "CSVを共有", 56, view -> shareCsv());
         mic = button(root, "話してカウント", 84, view -> requestVoice());
         mic.setTextSize(22);
-        styleButton(session, LILAC, INK);
-        styleButton(share, PLUM, LIME);
-        styleButton(mic, PLUM, LIME);
+        styleButton(session, LEAF, INK);
+        styleButton(share, FOREST, LIME);
+        styleButton(mic, FOREST, LIME);
         setContentView(root);
         ViewCompat.requestApplyInsets(root);
     }
@@ -178,7 +178,7 @@ public final class MainActivity extends Activity {
         button.setLetterSpacing(0.06f);
         button.setTextColor(foreground);
         button.setBackgroundTintList(null);
-        button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x44865abc),
+        button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x40679b56),
                 shape(background, 24), null));
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) button.getLayoutParams();
         params.topMargin = dp(8);
@@ -215,9 +215,9 @@ public final class MainActivity extends Activity {
             rows.addView(line);
             if (finished) {
                 View track = new View(this);
-                track.setBackground(shape(0xffe0c8f6, 9));
+                track.setBackground(shape(0xffc8dfb9, 9));
                 ViewCompat.setImportantForAccessibility(track, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_NO);
-                ClipDrawable fill = new ClipDrawable(shape(PLUM, 9), Gravity.LEFT, ClipDrawable.HORIZONTAL);
+                ClipDrawable fill = new ClipDrawable(shape(FOREST, 9), Gravity.LEFT, ClipDrawable.HORIZONTAL);
                 fill.setLevel(total > 0 ? (int) Math.round(10000.0 * entry.getValue() / total) : 0);
                 track.setForeground(fill);
                 rows.addView(track, new LinearLayout.LayoutParams(-1, dp(12)));
