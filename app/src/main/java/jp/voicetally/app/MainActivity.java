@@ -8,6 +8,14 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.content.res.ColorStateList;
+import android.graphics.Typeface;
+import android.graphics.drawable.ClipDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
+import android.os.VibrationAttributes;
+import android.os.VibratorManager;
+import android.view.Gravity;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.VibrationEffect;
@@ -38,6 +46,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 public final class MainActivity extends Activity {
+    private static final int LIME = 0xffd0f9a9;
+    private static final int LILAC = 0xffd2a9f9;
+    private static final int PLUM = 0xff492476;
+    private static final int INK = 0xff26143d;
+    private static final int PANEL = 0xffeefcdb;
     private static final int MICROPHONE = 10;
     private static final String READY = "ボタンを押して、ワードを1つ話す";
     private final LinkedHashMap<String, Long> counts = new LinkedHashMap<>();
@@ -45,7 +58,8 @@ public final class MainActivity extends Activity {
     private SpeechRecognizer speech;
     private boolean active;
     private long started;
-    private TextView summary, rows, status;
+    private TextView summary, status;
+    private LinearLayout rows;
     private Button session, mic, share;
 
     @Override public void onCreate(Bundle state) {
@@ -69,7 +83,9 @@ public final class MainActivity extends Activity {
     private void createScreen() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xfff2f6f3);
+        root.setBackgroundColor(LIME);
+        androidx.core.view.WindowCompat.getInsetsController(getWindow(), root)
+                .setAppearanceLightStatusBars(true);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
                     | WindowInsetsCompat.Type.displayCutout());
@@ -77,23 +93,39 @@ public final class MainActivity extends Activity {
                     dp(20) + bars.right, dp(14) + bars.bottom);
             return insets;
         });
-        TextView title = text(28);
+        TextView title = text(29);
+        title.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
+        title.setLetterSpacing(0.035f);
+        title.setTextColor(LIME);
+        title.setPadding(dp(16), dp(14), dp(16), dp(14));
+        GradientDrawable banner = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{INK, PLUM, 0xff7137a2});
+        banner.setCornerRadius(dp(26));
+        title.setBackground(banner);
         title.setText("ヴォイスカウンター");
         root.addView(title);
         summary = text(18);
+        summary.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        summary.setPadding(dp(12), dp(12), dp(12), dp(8));
         root.addView(summary);
         ScrollView list = new ScrollView(this);
-        rows = text(20);
-        rows.setPadding(0, dp(12), 0, dp(12));
+        list.setBackground(shape(PANEL, 22));
+        rows = new LinearLayout(this);
+        rows.setOrientation(LinearLayout.VERTICAL);
+        rows.setPadding(dp(14), dp(8), dp(14), dp(10));
         list.addView(rows);
         root.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
         status = text(16);
+        status.setPadding(dp(8), dp(10), dp(8), dp(6));
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         root.addView(status);
         session = button(root, "", 52, view -> changeSession());
         share = button(root, "CSVを共有", 56, view -> shareCsv());
         mic = button(root, "話してカウント", 84, view -> requestVoice());
         mic.setTextSize(22);
+        styleButton(session, LILAC, INK);
+        styleButton(share, PLUM, LIME);
+        styleButton(mic, PLUM, LIME);
         setContentView(root);
         ViewCompat.requestApplyInsets(root);
     }
@@ -105,7 +137,7 @@ public final class MainActivity extends Activity {
     private TextView text(int size) {
         TextView view = new TextView(this);
         view.setTextSize(size);
-        view.setTextColor(0xff18362f);
+        view.setTextColor(INK);
         return view;
     }
 
@@ -120,15 +152,12 @@ public final class MainActivity extends Activity {
     }
 
     private void updateScreen(String message) {
-        StringBuilder items = new StringBuilder();
         long total = 0;
-        for (Map.Entry<String, Long> row : counts.entrySet()) {
-            total += row.getValue();
-            items.append(row.getKey()).append("　").append(row.getValue()).append(" 件\n");
-        }
-        String phase = active ? "集計中" : started > 0 ? "終了" : "待機中";
+        for (long count : counts.values()) total += count;
+        boolean finished = !active && started > 0;
+        String phase = active ? "集計中" : finished ? "集計結果" : "待機中";
         summary.setText(phase + "　合計 " + total + " 件　" + counts.size() + " 種類");
-        rows.setText(items);
+        renderRows(finished, total);
         status.setText(message);
         session.setText(active ? "集計終了" : "集計開始");
         mic.setVisibility(active ? View.VISIBLE : View.GONE);
@@ -137,6 +166,65 @@ public final class MainActivity extends Activity {
         share.setVisibility(!active && started > 0 ? View.VISIBLE : View.GONE);
         if (active) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
+
+    private GradientDrawable shape(int color, int radius) {
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(color);
+        background.setCornerRadius(dp(radius));
+        return background;
+    }
+
+    private void styleButton(Button button, int background, int foreground) {
+        button.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
+        button.setLetterSpacing(0.06f);
+        button.setTextColor(foreground);
+        button.setBackgroundTintList(null);
+        button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x44865abc),
+                shape(background, 24), null));
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) button.getLayoutParams();
+        params.topMargin = dp(8);
+        button.setLayoutParams(params);
+    }
+
+    private void renderRows(boolean finished, long total) {
+        rows.removeAllViews();
+        if (counts.isEmpty()) {
+            TextView empty = text(16);
+            empty.setText(finished ? "カウントされたワードはありません" : "ワードがここに並びます");
+            empty.setPadding(0, dp(10), 0, 0);
+            rows.addView(empty);
+            return;
+        }
+        ArrayList<Map.Entry<String, Long>> entries = new ArrayList<>(counts.entrySet());
+        if (finished) {
+            java.util.Collections.sort(entries, (left, right) -> Long.compare(right.getValue(), left.getValue()));
+            TextView scale = text(13);
+            scale.setText("棒グラフの右端 ＝ 全 " + total + " 件");
+            rows.addView(scale);
+        }
+        for (Map.Entry<String, Long> entry : entries) {
+            LinearLayout line = new LinearLayout(this);
+            line.setPadding(0, dp(10), 0, dp(4));
+            TextView name = text(18);
+            name.setText(entry.getKey());
+            line.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
+            TextView value = text(18);
+            value.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
+            value.setText(entry.getValue() + " 件");
+            value.setPadding(dp(8), 0, 0, 0);
+            line.addView(value);
+            rows.addView(line);
+            if (finished) {
+                View track = new View(this);
+                track.setBackground(shape(0xffe0c8f6, 9));
+                ViewCompat.setImportantForAccessibility(track, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_NO);
+                ClipDrawable fill = new ClipDrawable(shape(PLUM, 9), Gravity.LEFT, ClipDrawable.HORIZONTAL);
+                fill.setLevel(total > 0 ? (int) Math.round(10000.0 * entry.getValue() / total) : 0);
+                track.setForeground(fill);
+                rows.addView(track, new LinearLayout.LayoutParams(-1, dp(12)));
+            }
+        }
     }
 
     private void changeSession() {
@@ -261,14 +349,24 @@ public final class MainActivity extends Activity {
         next.put(word, count);
         if (!save(started, true, next)) return;
         updateScreen(word + "　" + count + " 件" + (previous == null ? "（新規）" : ""));
-        vibrate(previous == null ? 280 : 65);
+        vibrate(previous == null ? 320 : 110);
     }
 
     private void vibrate(int milliseconds) {
-        Vibrator motor = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+        Vibrator motor;
+        if (Build.VERSION.SDK_INT >= 31) {
+            VibratorManager manager = getSystemService(VibratorManager.class);
+            motor = manager != null ? manager.getDefaultVibrator() : null;
+        } else {
+            motor = getSystemService(Vibrator.class);
+        }
         if (motor == null || !motor.hasVibrator()) return;
         if (Build.VERSION.SDK_INT >= 26) {
-            motor.vibrate(VibrationEffect.createOneShot(milliseconds, VibrationEffect.DEFAULT_AMPLITUDE));
+            int amplitude = motor.hasAmplitudeControl() ? 255 : VibrationEffect.DEFAULT_AMPLITUDE;
+            VibrationEffect effect = VibrationEffect.createOneShot(milliseconds, amplitude);
+            if (Build.VERSION.SDK_INT >= 33) {
+                motor.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH));
+            } else motor.vibrate(effect);
         } else motor.vibrate(milliseconds);
     }
 
